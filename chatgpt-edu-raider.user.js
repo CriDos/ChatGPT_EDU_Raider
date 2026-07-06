@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT EDU Raider
 // @namespace    re-kit.local/chatgpt-edu-raider
-// @version      1.0.6
+// @version      1.0.7
 // @description  ChatGPT EDU Raider: управление workspace ID, запросами, инвайтами и сессией.
 // @author       HardTest
 // @updateURL    https://github.com/CriDos/ChatGPT_EDU_Raider/raw/refs/heads/master/chatgpt-edu-raider.user.js
@@ -19,7 +19,7 @@
   "use strict";
 
   // App metadata and runtime keys.
-  const SCRIPT_VERSION = "1.0.6";
+  const SCRIPT_VERSION = "1.0.7";
   const APP_TITLE = "ChatGPT EDU Raider";
   const PROJECT_URL = "https://github.com/CriDos/ChatGPT_EDU_Raider";
   const ISSUES_URL = "https://github.com/CriDos/ChatGPT_EDU_Raider/issues";
@@ -52,6 +52,65 @@
     retryBackoffMs: 5000,
     sessionPollMs: 10000,
     panelWidth: 500
+  };
+
+  const LIMITS = {
+    minSessionPollMs: 1000,
+    unauthorizedRetryDelayMs: 2000,
+    safeFilenamePartLength: 80,
+    workspaceIdLength: 64,
+    commentLength: 80,
+    collapsedIconSize: 44,
+    dragStartThresholdPx: 3,
+    defaultCookieMaxAgeSec: 31536000,
+    expiredCookieMaxAgeSec: 0
+  };
+
+  const LOCALE = {
+    numbers: "ru",
+    time: "en-US",
+    defaultLanguage: "en-US"
+  };
+
+  const API_PARAMS = {
+    refreshAccount: "refresh_account",
+    exchangeWorkspaceToken: "exchange_workspace_token",
+    workspaceId: "workspace_id",
+    reason: "reason",
+    setCurrentAccount: "setCurrentAccount",
+    clientVersion: "prod",
+    defaultResidencyRegion: "no_constraint"
+  };
+
+  const HTTP = {
+    acceptAll: "*/*",
+    contentTypeJson: "application/json",
+    credentialsInclude: "include",
+    methodPost: "POST",
+    modeCors: "cors",
+    cacheNoStore: "no-store",
+    cacheNoCache: "no-cache"
+  };
+
+  const MIME_TYPES = {
+    textPlain: "text/plain",
+    clipboardText: "text"
+  };
+
+  const COOKIE_NAMES = {
+    account: "_account",
+    residencyRegion: "_account_residency_region",
+    routingOverride: "_account_routing_override",
+    fedramp: "_account_is_fedramp"
+  };
+
+  const COOKIE_OPTIONS = {
+    attributes: "; Path=/; Secure; SameSite=Lax"
+  };
+
+  const EXPORT_DEFAULTS = {
+    userName: "user",
+    recordType: "codex"
   };
 
   // Local storage and ChatGPT API paths.
@@ -129,11 +188,9 @@
     deleteSelected: "#jr-delete-selected",
     minimize: "#jr-min",
     cubik: "#jr-cubik",
-    infoClose: ".jr-info-close",
+    infoClose: "#jr-info-close",
     workspaceName: ".jr-ws",
     infoBody: ".jr-info-body",
-    infoCopyId: "#jr-info-copyid",
-    infoToFields: "#jr-info-tofields",
     infoAdd: "#jr-info-add"
   };
 
@@ -208,7 +265,7 @@
       delayMs: intAtLeast(saved.delayMs, CONFIG_DEFAULTS.delayMs, 0),
       maxRetries: intAtLeast(saved.maxRetries, CONFIG_DEFAULTS.maxRetries, 0),
       retryBackoffMs: intAtLeast(saved.retryBackoffMs, CONFIG_DEFAULTS.retryBackoffMs, 0),
-      sessionPollMs: Math.max(1000, positiveInt(saved.sessionPollMs, CONFIG_DEFAULTS.sessionPollMs)),
+      sessionPollMs: Math.max(LIMITS.minSessionPollMs, positiveInt(saved.sessionPollMs, CONFIG_DEFAULTS.sessionPollMs)),
       panelWidth: CONFIG_DEFAULTS.panelWidth,
       collapsed: saved.collapsed === true,
       collapsedIconPos: clampCollapsedIconPos(saved.collapsedIconPos)
@@ -279,11 +336,11 @@
   }
   function apiHeaders() {
     return {
-      accept: "*/*",
+      accept: HTTP.acceptAll,
       authorization: "Bearer " + STATE.at,
-      "content-type": "application/json",
+      "content-type": HTTP.contentTypeJson,
       "oai-device-id": STATE.deviceId,
-      "oai-language": navigator.language || "en-US"
+      "oai-language": navigator.language || LOCALE.defaultLanguage
     };
   }
   function accountUrl(wsId, suffix) {
@@ -324,7 +381,7 @@
     return dedupeItems(items);
   }
   function downloadJson(data, filename) {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: HTTP.contentTypeJson });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -351,7 +408,7 @@
   async function copyText(text, okMessage) {
     try {
       if (typeof GM_setClipboard === "function") {
-        GM_setClipboard(text, "text");
+        GM_setClipboard(text, MIME_TYPES.clipboardText);
         log(okMessage, LogLevel.OK);
         return;
       }
@@ -379,8 +436,8 @@
     return Number.isNaN(date.getTime()) ? "" : date.toISOString();
   }
   function safeFilenamePart(value) {
-    const cleaned = String(value || "user").trim().replace(/[\\/:*?"<>|]+/g, "_").slice(0, 80);
-    return cleaned || "user";
+    const cleaned = String(value || EXPORT_DEFAULTS.userName).trim().replace(/[\\/:*?"<>|]+/g, "_").slice(0, LIMITS.safeFilenamePartLength);
+    return cleaned || EXPORT_DEFAULTS.userName;
   }
   function displayValue(value) {
     if (value == null || value === "") return "";
@@ -402,7 +459,7 @@
   }
 
   async function fetchSession() {
-    const res = await fetch(ENDPOINTS.session, { headers: { accept: "*/*" }, credentials: "include" });
+    const res = await fetch(ENDPOINTS.session, { headers: { accept: HTTP.acceptAll }, credentials: HTTP.credentialsInclude });
     if (!res.ok) throw new Error("session HTTP " + res.status);
     return res.json();
   }
@@ -504,7 +561,7 @@
   function exportSessionData() {
     if (!STATE.at) { log("Нет сессии", LogLevel.ERR); return; }
     const info = sessionInfo(STATE.session || {});
-    const email = String(info.email || "user");
+    const email = String(info.email || EXPORT_DEFAULTS.userName);
     const prefix = safeFilenamePart(email.split("@")[0]);
     const now = new Date();
     const today = now.toISOString().split("T")[0];
@@ -516,7 +573,7 @@
       account_id: STATE.accountId || "",
       last_refresh: now.toISOString(),
       email: email,
-      type: "codex",
+      type: EXPORT_DEFAULTS.recordType,
       expired: expIso
     }];
     const filename = prefix + "_" + today + ".json";
@@ -538,12 +595,12 @@
     const routeText = ROUTE_TEXT[route] || ROUTE_TEXT[Route.REQUEST];
     const url = accountUrl(wsId, ENDPOINTS.invitesPrefix + route);
     try {
-      const res = await fetch(url, { method: "POST", headers: apiHeaders(), body: "{}", mode: "cors", credentials: "include" });
+      const res = await fetch(url, { method: HTTP.methodPost, headers: apiHeaders(), body: "{}", mode: HTTP.modeCors, credentials: HTTP.credentialsInclude });
       if (res.ok) { log(routeText.ok + ": " + shortId(wsId), LogLevel.OK); return true; }
       log(routeText.fail + ": " + shortId(wsId) + " HTTP " + res.status, LogLevel.WARN);
       if (res.status === 401 || res.status === 403) {
         if (!STATE.manualSession) await refreshSession();
-        if (attempt < CONFIG.maxRetries) { await sleep(2000); return sendOne(wsId, route, attempt + 1); }
+        if (attempt < CONFIG.maxRetries) { await sleep(LIMITS.unauthorizedRetryDelayMs); return sendOne(wsId, route, attempt + 1); }
         return false;
       }
       if (attempt < CONFIG.maxRetries) {
@@ -601,7 +658,7 @@
   }
   function clampCollapsedIconPos(pos) {
     if (!pos || typeof pos !== "object") return null;
-    const size = 44;
+    const size = LIMITS.collapsedIconSize;
     const maxLeft = Math.max(0, window.innerWidth - size);
     const maxTop = Math.max(0, window.innerHeight - size);
     const left = Math.min(Math.max(parseInt(pos.left, 10) || 0, 0), maxLeft);
@@ -653,7 +710,7 @@
       if (!dragging) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      if (Math.abs(dx) > LIMITS.dragStartThresholdPx || Math.abs(dy) > LIMITS.dragStartThresholdPx) moved = true;
       if (!moved) return;
       CONFIG.collapsedIconPos = clampCollapsedIconPos({ left: startLeft + dx, top: startTop + dy });
       applyPanelPosition(panel);
@@ -736,50 +793,50 @@
     const url = new URL(location.href);
     url.pathname = "/";
     url.search = "";
-    url.searchParams.set("refresh_account", "true");
+    url.searchParams.set(API_PARAMS.refreshAccount, "true");
     return url.toString();
   }
 
   function setCookie(name, value, maxAge) {
-    document.cookie = name + "=" + encodeURIComponent(value) + "; Max-Age=" + (maxAge || 31536000) + "; Path=/; Secure; SameSite=Lax";
+    document.cookie = name + "=" + encodeURIComponent(value) + "; Max-Age=" + (maxAge || LIMITS.defaultCookieMaxAgeSec) + COOKIE_OPTIONS.attributes;
   }
 
   function deleteCookie(name) {
-    document.cookie = name + "=; Max-Age=0; Path=/; Secure; SameSite=Lax";
+    document.cookie = name + "=; Max-Age=" + LIMITS.expiredCookieMaxAgeSec + COOKIE_OPTIONS.attributes;
   }
 
   function applyAccountState(storageValue, account) {
     try {
       localStorage.setItem(STORAGE_KEYS.currentAccount, JSON.stringify(storageValue));
     } catch (_) { }
-    setCookie("_account", storageValue);
+    setCookie(COOKIE_NAMES.account, storageValue);
     if (account && account.workspace && account.workspace.isPersonalWorkspace === true) {
-      deleteCookie("_account_residency_region");
-      deleteCookie("_account_routing_override");
-      setCookie("_account_is_fedramp", "false");
+      deleteCookie(COOKIE_NAMES.residencyRegion);
+      deleteCookie(COOKIE_NAMES.routingOverride);
+      setCookie(COOKIE_NAMES.fedramp, "false");
       return;
     }
     const ws = account && account.workspace ? account.workspace : {};
-    setCookie("_account_residency_region", ws.residencyRegion || ws.residency_region || "no_constraint");
-    setCookie("_account_is_fedramp", String(ws.isFedrampCompliantWorkspace === true || ws.is_fedramp_compliant_workspace === true));
+    setCookie(COOKIE_NAMES.residencyRegion, ws.residencyRegion || ws.residency_region || API_PARAMS.defaultResidencyRegion);
+    setCookie(COOKIE_NAMES.fedramp, String(ws.isFedrampCompliantWorkspace === true || ws.is_fedramp_compliant_workspace === true));
   }
 
   async function exchangeWorkspaceToken(accountId) {
     const id = normalizeId(accountId);
     if (!id) throw new Error("нет account id");
     const url = new URL(ENDPOINTS.session, location.origin);
-    url.searchParams.set("exchange_workspace_token", "true");
-    url.searchParams.set("workspace_id", id);
-    url.searchParams.set("reason", "setCurrentAccount");
+    url.searchParams.set(API_PARAMS.exchangeWorkspaceToken, "true");
+    url.searchParams.set(API_PARAMS.workspaceId, id);
+    url.searchParams.set(API_PARAMS.reason, API_PARAMS.setCurrentAccount);
     const headers = {
-      accept: "*/*",
-      "cache-control": "no-cache",
+      accept: HTTP.acceptAll,
+      "cache-control": HTTP.cacheNoCache,
       "OAI-Device-Id": STATE.deviceId || createDeviceId(),
-      "OAI-Client-Version": "prod",
+      "OAI-Client-Version": API_PARAMS.clientVersion,
       "X-OpenAI-Target-Path": ENDPOINTS.session,
       "X-OpenAI-Target-Route": ENDPOINTS.session
     };
-    const res = await fetch(url.toString(), { credentials: "include", cache: "no-store", headers: headers });
+    const res = await fetch(url.toString(), { credentials: HTTP.credentialsInclude, cache: HTTP.cacheNoStore, headers: headers });
     let data = null;
     try { data = await res.json(); } catch (_) { data = null; }
     if (data && data.workspaceTokenExchangeError) {
@@ -812,7 +869,7 @@
     const id = normalizeId(wsId);
     const entry = getSwitchWorkspaceMap().get(id);
     if (!entry || !entry.workspace) {
-      log("Аккаунт не подключён к workspace: " + shortId(id), LogLevel.WARN);
+      log("Аккаунт не подключен к workspace: " + shortId(id), LogLevel.WARN);
       return;
     }
     if (entry.workspace.isDeactivated === true) {
@@ -831,7 +888,7 @@
       return;
     }
     const name = (personal.workspace.workspaceName || personal.workspace.workspace_name || "Личка");
-    switchToStoredAccount("personal", personalId, name);
+    switchToStoredAccount(AccountKind.PERSONAL, personalId, name);
   }
 
   function updatePersonalSwitchState() {
@@ -952,7 +1009,7 @@
       row.classList.add("jr-item-dragging");
       if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", String(idx));
+        e.dataTransfer.setData(MIME_TYPES.textPlain, String(idx));
       }
     });
     handle.addEventListener("dragend", () => {
@@ -1051,7 +1108,7 @@
       } else {
         switchEl = document.createElement("span");
         switchEl.className = "jr-switch-missing" + (isDeactivated ? " jr-switch-deactivated" : "");
-        switchEl.title = isDeactivated ? "Workspace деактивирован" : "Аккаунт не подключён к workspace";
+        switchEl.title = isDeactivated ? "Workspace деактивирован" : "Аккаунт не подключен к workspace";
         switchEl.setAttribute("aria-label", switchEl.title);
         switchEl.innerHTML = isDeactivated
           ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>'
@@ -1076,7 +1133,7 @@
     input.className = "jr-cmt-edit";
     input.type = "text";
     input.value = item.comment || "";
-    input.maxLength = 80;
+    input.maxLength = LIMITS.commentLength;
     input.placeholder = "Комментарий";
     cmtEl.replaceWith(input);
     input.focus();
@@ -1131,7 +1188,7 @@
       const workspace = entry && entry.workspace;
       const name = workspaceLabel(item.id, workspace, item.comment);
       if (!workspace) {
-        skipped.push(name + " · не подключён");
+        skipped.push(name + " · не подключен");
         return;
       }
       if (workspace.isPersonalWorkspace === true) {
@@ -1152,7 +1209,7 @@
     try {
       STATE.running = true;
       setBtns(false);
-      log("AccessToken: выбрано " + selectedItems.length + ", сбор " + items.length + (skipped.length ? ", пропуск " + skipped.length : ""), LogLevel.INFO);
+      log("accessToken: запрос токена для выбранных workspace", LogLevel.INFO);
       logSkippedAccessTokenReasons(skipped);
       const tokens = new Array(items.length);
       let ok = 0;
@@ -1264,7 +1321,7 @@
 
   function fetchGroupInfo(wsId) {
     const base = accountUrl(wsId, "");
-    const options = { headers: apiHeaders(), credentials: "include" };
+    const options = { headers: apiHeaders(), credentials: HTTP.credentialsInclude };
     return Promise.allSettled([
       fetchJsonOrHttpError(base + ENDPOINTS.settings, options),
       fetchJsonOrHttpError(base + ENDPOINTS.usersSummary, options),
@@ -1295,7 +1352,7 @@
   }
   function totalTag(data, personal) {
     const total = responseTotal(data);
-    if (total != null) return valTag(total.toLocaleString("ru"));
+    if (total != null) return valTag(total.toLocaleString(LOCALE.numbers));
     if (personal) return '<span class="jr-muted">недоступно для лички</span>';
     if (data && data._err) return '<span class="jr-info-err">' + escHtml(String(data._err)) + '</span>';
     return mutedTag();
@@ -1314,34 +1371,23 @@
     bg.innerHTML =
       '<div class="jr-info-modal">' +
       '<div class="jr-info-head">' +
-      '<span class="jr-info-title">Инфо · <code class="jr-title-id">' + escHtml(wsId) + '</code></span>' +
-      '<button class="jr-info-close" title="Закрыть">✕</button>' +
+      '<span class="jr-info-title">Обзор · <code class="jr-title-id">' + escHtml(wsId) + '</code></span>' +
       '</div>' +
       '<div class="jr-info-body"><div class="jr-info-spin">Загрузка</div></div>' +
       '<div class="jr-info-actions">' +
-      '<button class="jr-info-act" id="jr-info-copyid">Копировать</button>' +
-      '<button class="jr-info-act" id="jr-info-tofields">Заполнить</button>' +
       '<button class="jr-info-act" id="jr-info-add">Добавить</button>' +
+      '<button class="jr-info-act" id="jr-info-close">Закрыть</button>' +
       '</div>' +
       '</div>';
     bg.addEventListener("click", e => { if (e.target === bg) closeInfoModal(); });
     bg.querySelector(SELECTOR.infoClose).addEventListener("click", closeInfoModal);
-    bg.querySelector(SELECTOR.infoCopyId).addEventListener("click", () => {
-      copyText(wsId, "ID скопирован");
-    });
-    bg.querySelector(SELECTOR.infoToFields).addEventListener("click", () => {
-      const d = infoModalData || {};
-      const name = infoWorkspaceName(wsId, d.settings || {});
-      if (newIdEl) newIdEl.value = wsId;
-      if (newCmtEl) newCmtEl.value = name;
-      if (newIdEl) newIdEl.focus();
-    });
     bg.querySelector(SELECTOR.infoAdd).addEventListener("click", () => {
       const d = infoModalData || {};
       const name = infoWorkspaceName(wsId, d.settings || {});
       if (!addConfigItem(wsId, name)) { log("ID уже есть", LogLevel.WARN); return; }
       saveConfig();
       renderList();
+      closeInfoModal();
     });
     document.body.appendChild(bg);
     infoModalBg = bg;
@@ -1453,7 +1499,7 @@
       }
     } catch (e) {
       renderInfoModal(wsId, { _err: String(e) });
-      log("Инфо: " + e.message, LogLevel.ERR);
+      log("Обзор: " + e.message, LogLevel.ERR);
     }
   }
 
@@ -1478,9 +1524,9 @@
       .jr-tok-in{flex:1;min-width:0;box-sizing:border-box;border:1px solid #30363d;background:#0d1117;color:#c9d1d9;border-radius:5px;outline:none;padding:6px 9px;font:10px/1.3 Consolas,monospace}.jr-tok-in:focus{border-color:#f0883e}
       .jr-tok-btn{cursor:pointer;border:1px solid #30363d;border-radius:5px;padding:6px 10px;font-size:11px;font-weight:700;color:#c9d1d9;flex:0 0 auto;transition:.12s}.jr-tok-apply{background:#238636;border-color:#238636;color:#fff}.jr-tok-apply:hover{background:#2ea043}.jr-tok-clear{background:#21262d;color:#8b949e}.jr-tok-clear:hover{background:#30363d}
       .jr-btn:disabled,.jr-add-btn:disabled,.jr-tok-btn:disabled{opacity:.5;cursor:not-allowed}
-      .jr-sec{padding:7px 12px 11px;border-bottom:1px solid #30363d}
+      .jr-sec{padding:4px 12px 11px;border-bottom:1px solid #30363d}
       .jr-list{max-height:182px;overflow:auto;border:1px solid #30363d;border-radius:6px;background:#0d1117}
-      .jr-listhead{height:32px;display:grid;grid-template-columns:18px 16px auto 1fr auto;align-items:end;column-gap:8px;margin:0 0 6px 8px;font-size:10px;color:#8b949e;font-weight:700}
+      .jr-listhead{height:28px;display:grid;grid-template-columns:18px 16px auto 1fr auto;align-items:end;column-gap:8px;margin:0 0 6px 8px;font-size:10px;color:#8b949e;font-weight:700}
       .jr-listhead-title{grid-column:1;align-self:end;justify-self:center;padding-bottom:2px;line-height:1}
       .jr-listhead-chk{grid-column:2;align-self:end;height:16px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;line-height:1}
       .jr-listhead-chk input{box-sizing:border-box;width:16px;height:16px;margin:0;cursor:pointer;accent-color:#f0883e}
@@ -1518,10 +1564,9 @@
       .jr-btn-primary{background:#1f6feb;border-color:#1f6feb;color:#fff}.jr-btn-primary:hover:not(:disabled){background:#388bfd}.jr-btn-green{background:#238636;border-color:#238636;color:#fff}.jr-btn-green:hover:not(:disabled){background:#2ea043}
       .jr-info-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px}
       .jr-info-modal{background:#0d1117;border:1px solid #30363d;border-radius:10px;box-shadow:0 16px 48px rgba(0,0,0,.7);width:580px;max-width:96vw;max-height:86vh;display:flex;flex-direction:column;overflow:hidden}
-      .jr-info-head{padding:11px 14px;background:#161b22;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;gap:8px}
+      .jr-info-head{padding:11px 14px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:8px}
       .jr-info-title{font-size:12px;font-weight:700;color:#7ee787;font-family:Consolas,monospace;word-break:break-all}
       .jr-title-id{color:#7ee787}
-      .jr-info-close{cursor:pointer;border:1px solid #30363d;border-radius:5px;padding:3px 9px;font-size:13px;font-weight:700;background:#21262d;color:#c9d1d9;flex:0 0 auto}.jr-info-close:hover{background:#f85149;color:#fff}
       .jr-info-body{padding:12px 14px;overflow:auto;font-size:11px;line-height:1.6;flex:1}
       .jr-info-sec{margin-bottom:12px}
       .jr-info-sec-h{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#8b949e;margin-bottom:5px;border-bottom:1px solid #21262d;padding-bottom:3px}
@@ -1532,7 +1577,7 @@
       .jr-muted{color:#8b949e}.jr-yes{color:#3fb950}.jr-no{color:#f85149}
       .jr-info-spin{padding:30px;text-align:center;color:#8b949e;font-size:12px}
       .jr-info-err{color:#f85149}
-      .jr-info-actions{padding:9px 14px;border-top:1px solid #30363d;background:#161b22;display:flex;gap:6px;justify-content:flex-end;flex:0 0 auto}
+      .jr-info-actions{padding:9px 14px;border-top:1px solid #30363d;background:#161b22;display:flex;gap:6px;justify-content:space-between;flex:0 0 auto}
       .jr-info-act{cursor:pointer;border:1px solid #30363d;border-radius:5px;padding:5px 11px;font-size:10px;font-weight:700;background:#21262d;color:#c9d1d9}.jr-info-act:hover{background:#30363d}
     `;
     const oldPanel = document.getElementById(PANEL_ID);
@@ -1604,8 +1649,8 @@
       </div>
 
       <div class="jr-add">
-        <input class="jr-in jr-in-id" id="jr-new-id" placeholder="Workspace ID" maxlength="64">
-        <input class="jr-in jr-in-cmt" id="jr-new-cmt" placeholder="Комментарий" maxlength="80">
+        <input class="jr-in jr-in-id" id="jr-new-id" placeholder="Workspace ID" maxlength="${LIMITS.workspaceIdLength}">
+        <input class="jr-in jr-in-cmt" id="jr-new-cmt" placeholder="Комментарий" maxlength="${LIMITS.commentLength}">
         <button class="jr-add-btn" id="jr-add" title="Добавить">+</button>
       </div>
 
@@ -1615,7 +1660,7 @@
         <button class="jr-btn jr-btn-icon" id="jr-personal-switch" title="Переключиться на личный аккаунт" aria-label="Переключиться на личный аккаунт">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
         </button>
-        <button class="jr-btn jr-btn-icon" id="jr-info" title="Информация о текущем workspace" aria-label="Информация о текущем workspace">
+        <button class="jr-btn jr-btn-icon" id="jr-info" title="Обзор текущего workspace" aria-label="Обзор текущего workspace">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v7"/><path d="M12 7h.01"/></svg>
         </button>
         <button class="jr-btn jr-btn-icon" id="jr-copy-log" title="Скопировать лог" aria-label="Скопировать лог">
@@ -1720,7 +1765,7 @@
 
   function log(msg, level) {
     const styles = { [LogLevel.INFO]: "jr-info", [LogLevel.OK]: "jr-ok", [LogLevel.WARN]: "jr-warn", [LogLevel.ERR]: "jr-err" };
-    const time = new Date().toLocaleTimeString("en-US", { hour12: false });
+    const time = new Date().toLocaleTimeString(LOCALE.time, { hour12: false });
     if (panelBody) {
       const line = document.createElement("div");
       line.className = "jr-line " + (styles[level] || "jr-info");
