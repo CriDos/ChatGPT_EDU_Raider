@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT EDU Raider
 // @namespace    re-kit.local/chatgpt-edu-raider
-// @version      1.0.6
+// @version      1.0.7
 // @description  ChatGPT EDU Raider: управление workspace ID, запросами, инвайтами и сессией.
 // @author       HardTest
 // @updateURL    https://github.com/CriDos/ChatGPT_EDU_Raider/raw/refs/heads/master/chatgpt-edu-raider.user.js
@@ -19,7 +19,7 @@
   "use strict";
 
   // App metadata and runtime keys.
-  const SCRIPT_VERSION = "1.0.6";
+  const SCRIPT_VERSION = "1.0.7";
   const APP_TITLE = "ChatGPT EDU Raider";
   const PROJECT_URL = "https://github.com/CriDos/ChatGPT_EDU_Raider";
   const ISSUES_URL = "https://github.com/CriDos/ChatGPT_EDU_Raider/issues";
@@ -129,11 +129,9 @@
     deleteSelected: "#jr-delete-selected",
     minimize: "#jr-min",
     cubik: "#jr-cubik",
-    infoClose: ".jr-info-close",
+    infoClose: "#jr-info-close",
     workspaceName: ".jr-ws",
     infoBody: ".jr-info-body",
-    infoCopyId: "#jr-info-copyid",
-    infoToFields: "#jr-info-tofields",
     infoAdd: "#jr-info-add"
   };
 
@@ -1314,34 +1312,23 @@
     bg.innerHTML =
       '<div class="jr-info-modal">' +
       '<div class="jr-info-head">' +
-      '<span class="jr-info-title">Инфо · <code class="jr-title-id">' + escHtml(wsId) + '</code></span>' +
-      '<button class="jr-info-close" title="Закрыть">✕</button>' +
+      '<span class="jr-info-title">Обзор · <code class="jr-title-id">' + escHtml(wsId) + '</code></span>' +
       '</div>' +
       '<div class="jr-info-body"><div class="jr-info-spin">Загрузка</div></div>' +
       '<div class="jr-info-actions">' +
-      '<button class="jr-info-act" id="jr-info-copyid">Копировать</button>' +
-      '<button class="jr-info-act" id="jr-info-tofields">Заполнить</button>' +
       '<button class="jr-info-act" id="jr-info-add">Добавить</button>' +
+      '<button class="jr-info-act" id="jr-info-close">Закрыть</button>' +
       '</div>' +
       '</div>';
     bg.addEventListener("click", e => { if (e.target === bg) closeInfoModal(); });
     bg.querySelector(SELECTOR.infoClose).addEventListener("click", closeInfoModal);
-    bg.querySelector(SELECTOR.infoCopyId).addEventListener("click", () => {
-      copyText(wsId, "ID скопирован");
-    });
-    bg.querySelector(SELECTOR.infoToFields).addEventListener("click", () => {
-      const d = infoModalData || {};
-      const name = infoWorkspaceName(wsId, d.settings || {});
-      if (newIdEl) newIdEl.value = wsId;
-      if (newCmtEl) newCmtEl.value = name;
-      if (newIdEl) newIdEl.focus();
-    });
     bg.querySelector(SELECTOR.infoAdd).addEventListener("click", () => {
       const d = infoModalData || {};
       const name = infoWorkspaceName(wsId, d.settings || {});
       if (!addConfigItem(wsId, name)) { log("ID уже есть", LogLevel.WARN); return; }
       saveConfig();
       renderList();
+      closeInfoModal();
     });
     document.body.appendChild(bg);
     infoModalBg = bg;
@@ -1453,7 +1440,7 @@
       }
     } catch (e) {
       renderInfoModal(wsId, { _err: String(e) });
-      log("Инфо: " + e.message, LogLevel.ERR);
+      log("Обзор: " + e.message, LogLevel.ERR);
     }
   }
 
@@ -1478,9 +1465,9 @@
       .jr-tok-in{flex:1;min-width:0;box-sizing:border-box;border:1px solid #30363d;background:#0d1117;color:#c9d1d9;border-radius:5px;outline:none;padding:6px 9px;font:10px/1.3 Consolas,monospace}.jr-tok-in:focus{border-color:#f0883e}
       .jr-tok-btn{cursor:pointer;border:1px solid #30363d;border-radius:5px;padding:6px 10px;font-size:11px;font-weight:700;color:#c9d1d9;flex:0 0 auto;transition:.12s}.jr-tok-apply{background:#238636;border-color:#238636;color:#fff}.jr-tok-apply:hover{background:#2ea043}.jr-tok-clear{background:#21262d;color:#8b949e}.jr-tok-clear:hover{background:#30363d}
       .jr-btn:disabled,.jr-add-btn:disabled,.jr-tok-btn:disabled{opacity:.5;cursor:not-allowed}
-      .jr-sec{padding:7px 12px 11px;border-bottom:1px solid #30363d}
+      .jr-sec{padding:4px 12px 11px;border-bottom:1px solid #30363d}
       .jr-list{max-height:182px;overflow:auto;border:1px solid #30363d;border-radius:6px;background:#0d1117}
-      .jr-listhead{height:32px;display:grid;grid-template-columns:18px 16px auto 1fr auto;align-items:end;column-gap:8px;margin:0 0 6px 8px;font-size:10px;color:#8b949e;font-weight:700}
+      .jr-listhead{height:28px;display:grid;grid-template-columns:18px 16px auto 1fr auto;align-items:end;column-gap:8px;margin:0 0 6px 8px;font-size:10px;color:#8b949e;font-weight:700}
       .jr-listhead-title{grid-column:1;align-self:end;justify-self:center;padding-bottom:2px;line-height:1}
       .jr-listhead-chk{grid-column:2;align-self:end;height:16px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;line-height:1}
       .jr-listhead-chk input{box-sizing:border-box;width:16px;height:16px;margin:0;cursor:pointer;accent-color:#f0883e}
@@ -1518,10 +1505,9 @@
       .jr-btn-primary{background:#1f6feb;border-color:#1f6feb;color:#fff}.jr-btn-primary:hover:not(:disabled){background:#388bfd}.jr-btn-green{background:#238636;border-color:#238636;color:#fff}.jr-btn-green:hover:not(:disabled){background:#2ea043}
       .jr-info-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px}
       .jr-info-modal{background:#0d1117;border:1px solid #30363d;border-radius:10px;box-shadow:0 16px 48px rgba(0,0,0,.7);width:580px;max-width:96vw;max-height:86vh;display:flex;flex-direction:column;overflow:hidden}
-      .jr-info-head{padding:11px 14px;background:#161b22;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;gap:8px}
+      .jr-info-head{padding:11px 14px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:8px}
       .jr-info-title{font-size:12px;font-weight:700;color:#7ee787;font-family:Consolas,monospace;word-break:break-all}
       .jr-title-id{color:#7ee787}
-      .jr-info-close{cursor:pointer;border:1px solid #30363d;border-radius:5px;padding:3px 9px;font-size:13px;font-weight:700;background:#21262d;color:#c9d1d9;flex:0 0 auto}.jr-info-close:hover{background:#f85149;color:#fff}
       .jr-info-body{padding:12px 14px;overflow:auto;font-size:11px;line-height:1.6;flex:1}
       .jr-info-sec{margin-bottom:12px}
       .jr-info-sec-h{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#8b949e;margin-bottom:5px;border-bottom:1px solid #21262d;padding-bottom:3px}
@@ -1532,7 +1518,7 @@
       .jr-muted{color:#8b949e}.jr-yes{color:#3fb950}.jr-no{color:#f85149}
       .jr-info-spin{padding:30px;text-align:center;color:#8b949e;font-size:12px}
       .jr-info-err{color:#f85149}
-      .jr-info-actions{padding:9px 14px;border-top:1px solid #30363d;background:#161b22;display:flex;gap:6px;justify-content:flex-end;flex:0 0 auto}
+      .jr-info-actions{padding:9px 14px;border-top:1px solid #30363d;background:#161b22;display:flex;gap:6px;justify-content:space-between;flex:0 0 auto}
       .jr-info-act{cursor:pointer;border:1px solid #30363d;border-radius:5px;padding:5px 11px;font-size:10px;font-weight:700;background:#21262d;color:#c9d1d9}.jr-info-act:hover{background:#30363d}
     `;
     const oldPanel = document.getElementById(PANEL_ID);
@@ -1615,7 +1601,7 @@
         <button class="jr-btn jr-btn-icon" id="jr-personal-switch" title="Переключиться на личный аккаунт" aria-label="Переключиться на личный аккаунт">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
         </button>
-        <button class="jr-btn jr-btn-icon" id="jr-info" title="Информация о текущем workspace" aria-label="Информация о текущем workspace">
+        <button class="jr-btn jr-btn-icon" id="jr-info" title="Обзор текущего workspace" aria-label="Обзор текущего workspace">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v7"/><path d="M12 7h.01"/></svg>
         </button>
         <button class="jr-btn jr-btn-icon" id="jr-copy-log" title="Скопировать лог" aria-label="Скопировать лог">
