@@ -1,4 +1,4 @@
-# ChatGPT EDU Raider 1.0.0
+# ChatGPT EDU Raider 1.0.1
 
 Userscript для управления ChatGPT EDU/workspace ID прямо на страницах ChatGPT.
 
@@ -31,7 +31,7 @@ Userscript для управления ChatGPT EDU/workspace ID прямо на 
 ## Установка
 
 1. Установите менеджер userscript, например ScriptCat, Tampermonkey или Violentmonkey.
-2. Откройте прямую ссылку: [установить ChatGPT EDU Raider](https://raw.githubusercontent.com/OWNER/REPO/main/chatgpt-edu-raider.user.js).
+2. Откройте прямую ссылку: [установить ChatGPT EDU Raider](https://github.com/CriDos/ChatGPT_EDU_Raider/raw/refs/heads/master/chatgpt-edu-raider.user.js).
 3. Подтвердите установку, когда менеджер userscript откроет окно установки.
 4. Откройте `https://chatgpt.com/`.
 5. Используйте панель `ChatGPT EDU Raider`.
@@ -67,11 +67,3 @@ workspace-id
 ```
 
 Несколько ID без комментариев можно вставлять через пробелы, запятые или новые строки.
-
-## Дефолтные Записи
-
-В скрипте есть предустановленный список workspace ID для чистой установки.
-
-Он добавляется автоматически только если сохранённого конфига ещё нет. После этого записи становятся обычными: их можно редактировать, удалять и перемещать.
-
-Кнопка `Добавить дефолтные workspace` не сбрасывает список. Она только добавляет те дефолтные workspace ID, которых ещё нет в текущем списке.

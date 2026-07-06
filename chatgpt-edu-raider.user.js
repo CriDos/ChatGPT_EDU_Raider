@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         ChatGPT EDU Raider
 // @namespace    re-kit.local/chatgpt-edu-raider
-// @version      1.0.0
+// @version      1.0.1
 // @description  ChatGPT EDU Raider: управление workspace ID, запросами, инвайтами и сессией.
 // @author       HardTest
+// @updateURL    https://github.com/CriDos/ChatGPT_EDU_Raider/raw/refs/heads/master/chatgpt-edu-raider.user.js
+// @downloadURL  https://github.com/CriDos/ChatGPT_EDU_Raider/raw/refs/heads/master/chatgpt-edu-raider.user.js
 // @match        https://chatgpt.com/*
 // @match        https://*.openai.com/*
 // @run-at       document-start
@@ -16,7 +18,7 @@
   "use strict";
 
   // App metadata and runtime keys.
-  const SCRIPT_VERSION = "1.0.0";
+  const SCRIPT_VERSION = "1.0.1";
   const APP_TITLE = "ChatGPT EDU Raider";
   const INSTANCE_KEY = "__chatgptEduRaiderCleanup";
   const PANEL_ID = "jr-edu-raider-panel";
