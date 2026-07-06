@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT EDU Raider
 // @namespace    re-kit.local/chatgpt-edu-raider
-// @version      1.0.3
+// @version      1.0.4
 // @description  ChatGPT EDU Raider: управление workspace ID, запросами, инвайтами и сессией.
 // @author       HardTest
 // @updateURL    https://github.com/CriDos/ChatGPT_EDU_Raider/raw/refs/heads/master/chatgpt-edu-raider.user.js
@@ -11,6 +11,7 @@
 // @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_setClipboard
 // @noframes
 // ==/UserScript==
 
@@ -18,7 +19,7 @@
   "use strict";
 
   // App metadata and runtime keys.
-  const SCRIPT_VERSION = "1.0.3";
+  const SCRIPT_VERSION = "1.0.4";
   const APP_TITLE = "ChatGPT EDU Raider";
   const PROJECT_URL = "https://github.com/CriDos/ChatGPT_EDU_Raider";
   const ISSUES_URL = "https://github.com/CriDos/ChatGPT_EDU_Raider/issues";
@@ -122,6 +123,7 @@
     copySession: "#jr-copy-session",
     importList: "#jr-import-list",
     copySelected: "#jr-copy-selected",
+    copyAccessTokens: "#jr-copy-access-tokens",
     addDefaults: "#jr-add-defaults",
     deleteSelected: "#jr-delete-selected",
     minimize: "#jr-min",
@@ -347,6 +349,11 @@
   }
   async function copyText(text, okMessage) {
     try {
+      if (typeof GM_setClipboard === "function") {
+        GM_setClipboard(text, "text");
+        log(okMessage, LogLevel.OK);
+        return;
+      }
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
         log(okMessage, LogLevel.OK);
@@ -770,9 +777,15 @@
       "X-OpenAI-Target-Route": ENDPOINTS.session
     };
     const res = await fetch(url.toString(), { credentials: "include", cache: "no-store", headers: headers });
+    let data = null;
+    try { data = await res.json(); } catch (_) { data = null; }
     if (!res.ok) throw new Error("exchange HTTP " + res.status);
-    try { await res.clone().text(); } catch (_) { }
-    return res;
+    if (data && data.workspaceTokenExchangeError) {
+      throw new Error(data.workspaceTokenExchangeError.message || data.workspaceTokenExchangeError.code || "exchange error");
+    }
+    if (data && data.error) throw new Error(data.error.message || data.error.code || String(data.error));
+    if (!data || typeof data.accessToken !== "string" || !data.accessToken) throw new Error("exchange: нет accessToken");
+    return data || {};
   }
 
   async function switchToStoredAccount(storageValue, exchangeAccountId, label) {
@@ -1086,6 +1099,66 @@
     const items = CONFIG.items.filter(item => item.id && selected.has(item.id));
     if (!items.length) { log("ID не выбраны", LogLevel.WARN); return; }
     copyText(formatWorkspaceList(items), "Скопировано ID: " + items.length);
+  }
+
+  async function copySelectedWorkspaceAccessTokens() {
+    const btn = document.querySelector(SELECTOR.copyAccessTokens);
+    syncSelected();
+    const switchMap = getSwitchWorkspaceMap();
+    const selectedItems = CONFIG.items.filter(item => item.id && selected.has(item.id));
+    const items = [];
+    const skipped = [];
+    selectedItems.forEach(item => {
+      const entry = switchMap.get(item.id);
+      const workspace = entry && entry.workspace;
+      const name = workspace ? (workspace.workspaceName || workspace.workspace_name || item.comment || shortId(item.id)) : (item.comment || shortId(item.id));
+      if (!workspace) {
+        skipped.push(name + " · не подключён");
+        return;
+      }
+      if (workspace.isPersonalWorkspace === true) {
+        skipped.push(name + " · личный аккаунт");
+        return;
+      }
+      if (workspace.isDeactivated === true) {
+        skipped.push(name + " · деактивирован");
+        return;
+      }
+      items.push({ id: item.id, name: name, workspace: workspace });
+    });
+    if (!items.length) {
+      log("AccessToken: выберите доступные workspace" + (skipped.length ? ", пропущено " + skipped.length : ""), LogLevel.WARN);
+      skipped.slice(0, 5).forEach(reason => log("AccessToken skip: " + reason, LogLevel.WARN));
+      return;
+    }
+    try {
+      if (btn) btn.disabled = true;
+      log("AccessToken: выбрано " + selectedItems.length + ", сбор " + items.length + (skipped.length ? ", пропуск " + skipped.length : ""), LogLevel.INFO);
+      skipped.slice(0, 5).forEach(reason => log("AccessToken skip: " + reason, LogLevel.WARN));
+      const tokens = new Array(items.length);
+      let ok = 0;
+      let done = 0;
+      await runQueue(items.map((item, index) => ({ item: item, index: index })), getConcurrencyLimit(items.length), async task => {
+        try {
+          const data = await exchangeWorkspaceToken(task.item.id);
+          if (!data || typeof data.accessToken !== "string" || !data.accessToken) throw new Error("нет accessToken");
+          tokens[task.index] = data.accessToken;
+          ok++;
+          done++;
+          log("AccessToken ok " + done + "/" + items.length + ": " + task.item.name + " · " + shortId(task.item.id), LogLevel.OK);
+        } catch (e) {
+          done++;
+          log("AccessToken err " + done + "/" + items.length + ": " + task.item.name + " · " + (e && e.message ? e.message : String(e)), LogLevel.ERR);
+        }
+      });
+      const text = tokens.filter(Boolean).join("\n");
+      if (!text) throw new Error("нет accessToken");
+      await copyText(text, "AccessToken скопированы: " + ok + "/" + items.length);
+    } catch (e) {
+      log("AccessToken: " + (e && e.message ? e.message : String(e)), LogLevel.ERR);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   function deleteSelectedItems() {
@@ -1496,6 +1569,9 @@
             <button class="jr-iebtn" id="jr-copy-selected" title="Скопировать" aria-label="Скопировать">
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/><path d="m11.5 14.5 2 2 4-4"/></svg>
             </button>
+            <button class="jr-iebtn jr-iebtn-defaults" id="jr-copy-access-tokens" title="Скопировать accessToken для выбранных workspace" aria-label="Скопировать accessToken для выбранных workspace">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="14.5" r="3.5"/><path d="M10 12 20 2"/><path d="M16 6l2 2"/><path d="M14 8l2 2"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>
+            </button>
             <button class="jr-iebtn jr-iebtn-defaults" id="jr-add-defaults" title="Добавить дефолтные workspace" aria-label="Добавить дефолтные workspace">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M3 12h10"/><path d="M3 18h10"/><path d="M18 11v8"/><path d="M14 15h8"/></svg>
             </button>
@@ -1588,6 +1664,7 @@
     });
 
     p.querySelector(SELECTOR.copySelected).addEventListener("click", copySelectedItems);
+    p.querySelector(SELECTOR.copyAccessTokens).addEventListener("click", copySelectedWorkspaceAccessTokens);
     p.querySelector(SELECTOR.addDefaults).addEventListener("click", addDefaultItems);
     p.querySelector(SELECTOR.deleteSelected).addEventListener("click", deleteSelectedItems);
     p.querySelector(SELECTOR.importList).addEventListener("click", importList);
