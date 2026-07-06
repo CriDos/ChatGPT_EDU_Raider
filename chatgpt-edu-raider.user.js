@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT EDU Raider
 // @namespace    re-kit.local/chatgpt-edu-raider
-// @version      1.0.5
+// @version      1.0.6
 // @description  ChatGPT EDU Raider: управление workspace ID, запросами, инвайтами и сессией.
 // @author       HardTest
 // @updateURL    https://github.com/CriDos/ChatGPT_EDU_Raider/raw/refs/heads/master/chatgpt-edu-raider.user.js
@@ -19,7 +19,7 @@
   "use strict";
 
   // App metadata and runtime keys.
-  const SCRIPT_VERSION = "1.0.5";
+  const SCRIPT_VERSION = "1.0.6";
   const APP_TITLE = "ChatGPT EDU Raider";
   const PROJECT_URL = "https://github.com/CriDos/ChatGPT_EDU_Raider";
   const ISSUES_URL = "https://github.com/CriDos/ChatGPT_EDU_Raider/issues";
@@ -28,6 +28,7 @@
   const STYLE_ID = "jr-edu-raider-style";
   const LOG_LIMIT = 200;
   const FIXED_CONCURRENCY = 5;
+  const MAX_SKIP_LOG_LINES = 5;
 
   // Default workspace data and config values.
   const DEFAULT_WORKSPACE_ITEMS = [
@@ -587,14 +588,16 @@
   }
 
   let panelBody, userBarEl, reqBtnEl, accBtnEl, infoBtnEl, copyLogBtnEl, clearLogBtnEl, personalBtnEl, listEl, selCountEl,
-    newIdEl, newCmtEl, addBtnEl, allChkEl, tokenEl, applyTokBtn, clearTokBtn;
+    newIdEl, newCmtEl, addBtnEl, allChkEl, tokenEl, applyTokBtn, clearTokBtn,
+    importListBtnEl, copySelectedBtnEl, copyAccessTokensBtnEl, addDefaultsBtnEl, deleteSelectedBtnEl;
   let selected = new Set();
   let infoModalBg = null, infoModalData = null;
   let dragIndex = -1;
 
   function setBtns(enabled) {
-    [reqBtnEl, accBtnEl, infoBtnEl, copyLogBtnEl, clearLogBtnEl, personalBtnEl, addBtnEl, applyTokBtn, clearTokBtn].forEach(b => { if (b) b.disabled = !enabled; });
-    [newIdEl, newCmtEl, tokenEl].forEach(el => { if (el) el.disabled = !enabled; });
+    [reqBtnEl, accBtnEl, infoBtnEl, copyLogBtnEl, clearLogBtnEl, personalBtnEl, addBtnEl, applyTokBtn, clearTokBtn,
+      importListBtnEl, copySelectedBtnEl, copyAccessTokensBtnEl, addDefaultsBtnEl, deleteSelectedBtnEl].forEach(b => { if (b) b.disabled = !enabled; });
+    [newIdEl, newCmtEl, tokenEl, allChkEl].forEach(el => { if (el) el.disabled = !enabled; });
   }
   function clampCollapsedIconPos(pos) {
     if (!pos || typeof pos !== "object") return null;
@@ -779,17 +782,19 @@
     const res = await fetch(url.toString(), { credentials: "include", cache: "no-store", headers: headers });
     let data = null;
     try { data = await res.json(); } catch (_) { data = null; }
-    if (!res.ok) throw new Error("exchange HTTP " + res.status);
     if (data && data.workspaceTokenExchangeError) {
       throw new Error(data.workspaceTokenExchangeError.message || data.workspaceTokenExchangeError.code || "exchange error");
     }
     if (data && data.error) throw new Error(data.error.message || data.error.code || String(data.error));
+    if (!res.ok) throw new Error("exchange HTTP " + res.status);
     if (!data || typeof data.accessToken !== "string" || !data.accessToken) throw new Error("exchange: нет accessToken");
     return data || {};
   }
 
   async function switchToStoredAccount(storageValue, exchangeAccountId, label) {
+    if (STATE.running) { log("Операция уже выполняется", LogLevel.WARN); return; }
     try {
+      STATE.running = true;
       setBtns(false);
       log("Переключение: " + label, LogLevel.INFO);
       const entry = getSwitchWorkspaceMap().get(normalizeId(exchangeAccountId));
@@ -797,6 +802,7 @@
       applyAccountState(storageValue, entry);
       location.assign(switchRefreshUrl());
     } catch (e) {
+      STATE.running = false;
       log("Переключение: " + (e && e.message ? e.message : String(e)), LogLevel.ERR);
       setBtns(true);
     }
@@ -840,6 +846,18 @@
     if (!entry) return "";
     const ws = entry.workspace || entry.account || {};
     return ws.workspaceName || ws.workspace_name || ws.name || ws.displayName || ws.display_name || "";
+  }
+
+  function workspaceLabel(id, workspace, fallback) {
+    const ws = workspace || {};
+    return ws.workspaceName || ws.workspace_name || ws.name || ws.displayName || ws.display_name || fallback || shortId(id);
+  }
+
+  function logSkippedAccessTokenReasons(skipped) {
+    skipped.slice(0, MAX_SKIP_LOG_LINES).forEach(reason => log("AccessToken skip: " + reason, LogLevel.WARN));
+    if (skipped.length > MAX_SKIP_LOG_LINES) {
+      log("AccessToken skip: ещё " + (skipped.length - MAX_SKIP_LOG_LINES), LogLevel.WARN);
+    }
   }
 
   function sessionAccountKind(accountId) {
@@ -1102,7 +1120,7 @@
   }
 
   async function copySelectedWorkspaceAccessTokens() {
-    const btn = document.querySelector(SELECTOR.copyAccessTokens);
+    if (STATE.running) { log("Операция уже выполняется", LogLevel.WARN); return; }
     syncSelected();
     const switchMap = getSwitchWorkspaceMap();
     const selectedItems = CONFIG.items.filter(item => item.id && selected.has(item.id));
@@ -1111,7 +1129,7 @@
     selectedItems.forEach(item => {
       const entry = switchMap.get(item.id);
       const workspace = entry && entry.workspace;
-      const name = workspace ? (workspace.workspaceName || workspace.workspace_name || item.comment || shortId(item.id)) : (item.comment || shortId(item.id));
+      const name = workspaceLabel(item.id, workspace, item.comment);
       if (!workspace) {
         skipped.push(name + " · не подключён");
         return;
@@ -1128,13 +1146,14 @@
     });
     if (!items.length) {
       log("AccessToken: выберите доступные workspace" + (skipped.length ? ", пропущено " + skipped.length : ""), LogLevel.WARN);
-      skipped.slice(0, 5).forEach(reason => log("AccessToken skip: " + reason, LogLevel.WARN));
+      logSkippedAccessTokenReasons(skipped);
       return;
     }
     try {
-      if (btn) btn.disabled = true;
+      STATE.running = true;
+      setBtns(false);
       log("AccessToken: выбрано " + selectedItems.length + ", сбор " + items.length + (skipped.length ? ", пропуск " + skipped.length : ""), LogLevel.INFO);
-      skipped.slice(0, 5).forEach(reason => log("AccessToken skip: " + reason, LogLevel.WARN));
+      logSkippedAccessTokenReasons(skipped);
       const tokens = new Array(items.length);
       let ok = 0;
       let done = 0;
@@ -1157,7 +1176,8 @@
     } catch (e) {
       log("AccessToken: " + (e && e.message ? e.message : String(e)), LogLevel.ERR);
     } finally {
-      if (btn) btn.disabled = false;
+      STATE.running = false;
+      setBtns(true);
     }
   }
 
@@ -1629,6 +1649,11 @@
     tokenEl = p.querySelector(SELECTOR.token);
     applyTokBtn = p.querySelector(SELECTOR.tokenApply);
     clearTokBtn = p.querySelector(SELECTOR.tokenClear);
+    importListBtnEl = p.querySelector(SELECTOR.importList);
+    copySelectedBtnEl = p.querySelector(SELECTOR.copySelected);
+    copyAccessTokensBtnEl = p.querySelector(SELECTOR.copyAccessTokens);
+    addDefaultsBtnEl = p.querySelector(SELECTOR.addDefaults);
+    deleteSelectedBtnEl = p.querySelector(SELECTOR.deleteSelected);
 
     tokenEl.value = "";
 
@@ -1663,11 +1688,11 @@
       refreshSession();
     });
 
-    p.querySelector(SELECTOR.copySelected).addEventListener("click", copySelectedItems);
-    p.querySelector(SELECTOR.copyAccessTokens).addEventListener("click", copySelectedWorkspaceAccessTokens);
-    p.querySelector(SELECTOR.addDefaults).addEventListener("click", addDefaultItems);
-    p.querySelector(SELECTOR.deleteSelected).addEventListener("click", deleteSelectedItems);
-    p.querySelector(SELECTOR.importList).addEventListener("click", importList);
+    copySelectedBtnEl.addEventListener("click", copySelectedItems);
+    copyAccessTokensBtnEl.addEventListener("click", copySelectedWorkspaceAccessTokens);
+    addDefaultsBtnEl.addEventListener("click", addDefaultItems);
+    deleteSelectedBtnEl.addEventListener("click", deleteSelectedItems);
+    importListBtnEl.addEventListener("click", importList);
 
     allChkEl.addEventListener("change", () => {
       selected = allChkEl.checked ? new Set(CONFIG.items.map(i => i.id).filter(Boolean)) : new Set();
