@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT EDU Raider
 // @namespace    re-kit.local/chatgpt-edu-raider
-// @version      1.0.2
+// @version      1.0.3
 // @description  ChatGPT EDU Raider: управление workspace ID, запросами, инвайтами и сессией.
 // @author       HardTest
 // @updateURL    https://github.com/CriDos/ChatGPT_EDU_Raider/raw/refs/heads/master/chatgpt-edu-raider.user.js
@@ -18,8 +18,10 @@
   "use strict";
 
   // App metadata and runtime keys.
-  const SCRIPT_VERSION = "1.0.2";
+  const SCRIPT_VERSION = "1.0.3";
   const APP_TITLE = "ChatGPT EDU Raider";
+  const PROJECT_URL = "https://github.com/CriDos/ChatGPT_EDU_Raider";
+  const ISSUES_URL = "https://github.com/CriDos/ChatGPT_EDU_Raider/issues";
   const INSTANCE_KEY = "__chatgptEduRaiderCleanup";
   const PANEL_ID = "jr-edu-raider-panel";
   const STYLE_ID = "jr-edu-raider-style";
@@ -1374,6 +1376,7 @@
       .jr-brand-wrap{display:flex;align-items:center;gap:9px;min-width:0}.jr-title{font-size:14px;font-weight:700;line-height:1.05;color:#7ee787;font-family:Consolas,monospace;white-space:nowrap}
       .jr-hbtns{display:flex;gap:8px;align-items:center}
       .jr-ver{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:20px;padding:0 7px;border-radius:4px;font-size:10px;font-weight:700;background:#21262d;color:#8b949e;border:1px solid #30363d}
+      .jr-gh,.jr-req{display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;border:1px solid #30363d;border-radius:4px;background:#21262d;color:#8b949e;text-decoration:none;flex:0 0 auto;transition:.12s}.jr-gh:hover,.jr-req:hover{background:#30363d;color:#c9d1d9}.jr-gh svg{display:block;width:17px;height:17px;fill:currentColor}.jr-req svg{display:block;width:16px;height:16px;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;fill:none}
       .jr-hbtn{cursor:pointer;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1px solid #30363d;border-radius:5px;padding:0;font-size:12px;font-weight:700;line-height:1;background:#21262d;color:#c9d1d9}.jr-hbtn:hover{background:#30363d}.jr-min-btn{border-color:#34445c;background:#243044;color:#d8e7ff}.jr-min-btn:hover{background:#2d3c55;border-color:#4b6385;color:#eef6ff}
       .jr-sub{padding:7px 12px;background:#161b22;border-bottom:1px solid #30363d;font-size:11px;color:#8b949e}
       .jr-dot-ok{color:#3fb950}.jr-dot-warn{color:#d29922}.jr-dot-err{color:#f85149}.jr-account{background:#21262d;padding:2px 7px;border-radius:4px;color:#7ee787;border:1px solid #30363d;font-family:Consolas,monospace}.jr-ws{cursor:pointer;color:#f0883e;border-bottom:1px dotted #f0883e}.jr-kind{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-right:5px;border:1px solid #30363d;border-radius:4px;background:#21262d;color:#7ee787;font:700 10px/1 Consolas,monospace;vertical-align:middle}.jr-ws-personal .jr-kind{color:#58a6ff}.jr-ws-workspace .jr-kind{color:#7ee787}.jr-ws-unknown .jr-kind{color:#8b949e}
@@ -1457,6 +1460,12 @@
         <div class="jr-brand-wrap">
           <div class="jr-title">${APP_TITLE}</div>
           <span class="jr-ver">v${SCRIPT_VERSION}</span>
+          <a class="jr-gh" href="${PROJECT_URL}" target="_blank" rel="noopener noreferrer" title="GitHub" aria-label="GitHub">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.61-3.37-1.18-3.37-1.18-.45-1.15-1.11-1.46-1.11-1.46-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.35 1.08 2.92.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.93 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.03c.85 0 1.7.11 2.5.33 1.9-1.29 2.74-1.02 2.74-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.83-2.34 4.67-4.57 4.92.36.31.68.92.68 1.86v2.76c0 .26.18.58.69.48A10 10 0 0 0 12 2Z"/></svg>
+          </a>
+          <a class="jr-req" href="${ISSUES_URL}" target="_blank" rel="noopener noreferrer" title="Пожелания и новые workspace ID" aria-label="Пожелания и новые workspace ID">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M12 8v6"/><path d="M9 11h6"/></svg>
+          </a>
         </div>
         <div class="jr-hbtns">
           <button class="jr-hbtn" id="jr-export" title="Экспорт сессии">⬇</button>
