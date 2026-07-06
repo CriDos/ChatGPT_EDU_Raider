@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT EDU Raider
 // @namespace    re-kit.local/chatgpt-edu-raider
-// @version      1.0.4
+// @version      1.0.5
 // @description  ChatGPT EDU Raider: управление workspace ID, запросами, инвайтами и сессией.
 // @author       HardTest
 // @updateURL    https://github.com/CriDos/ChatGPT_EDU_Raider/raw/refs/heads/master/chatgpt-edu-raider.user.js
@@ -19,7 +19,7 @@
   "use strict";
 
   // App metadata and runtime keys.
-  const SCRIPT_VERSION = "1.0.4";
+  const SCRIPT_VERSION = "1.0.5";
   const APP_TITLE = "ChatGPT EDU Raider";
   const PROJECT_URL = "https://github.com/CriDos/ChatGPT_EDU_Raider";
   const ISSUES_URL = "https://github.com/CriDos/ChatGPT_EDU_Raider/issues";
@@ -1444,7 +1444,7 @@
       .jr-panel.collapsed{width:44px;height:44px;right:10px;background:transparent;border:0;box-shadow:none;overflow:visible}
       .jr-panel.collapsed .jr-head,.jr-panel.collapsed .jr-sub,.jr-panel.collapsed .jr-tok,.jr-panel.collapsed .jr-sec,.jr-panel.collapsed .jr-add,.jr-panel.collapsed .jr-body,.jr-panel.collapsed .jr-foot{display:none}
       .jr-panel.collapsed .jr-cubik{display:flex}
-      .jr-cubik{position:relative;display:none;width:44px;height:44px;align-items:center;justify-content:center;cursor:pointer;font:900 22px/1 Consolas,monospace;color:#7ee787;background:#161b22;border:1px solid #30363d;border-radius:9px;box-shadow:0 8px 22px rgba(0,0,0,.42);text-shadow:0 0 10px rgba(126,231,135,.35);user-select:none;touch-action:none;transition:.14s}.jr-cubik:hover{transform:translateY(-1px);background:#1f2630;border-color:#3d4654;color:#9effa8}.jr-cubik:active{transform:translateY(0)}
+      .jr-cubik{position:relative;display:none;width:44px;height:44px;align-items:center;justify-content:center;cursor:pointer;font:900 22px/1 Consolas,monospace;color:#c9d1d9;background:#161b22;border:1px solid #30363d;border-radius:9px;box-shadow:0 8px 22px rgba(0,0,0,.38);user-select:none;touch-action:none;transition:.14s}.jr-cubik:hover{transform:translateY(-1px);background:#21262d;border-color:#484f58;color:#f0f6fc}.jr-cubik:active{transform:translateY(0)}
       .jr-head{padding:7px 12px;background:#161b22;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;gap:8px;align-items:center}
       .jr-brand-wrap{display:flex;align-items:center;gap:9px;min-width:0}.jr-title{font-size:14px;font-weight:700;line-height:1.05;color:#7ee787;font-family:Consolas,monospace;white-space:nowrap}
       .jr-hbtns{display:flex;gap:8px;align-items:center}
@@ -1546,7 +1546,7 @@
           <button class="jr-hbtn jr-min-btn" id="jr-min" title="Свернуть">−</button>
         </div>
       </div>
-      <div class="jr-cubik" id="jr-cubik" title="Развернуть">W</div>
+      <div class="jr-cubik" id="jr-cubik" title="Развернуть">R</div>
       <div class="jr-sub" id="jr-user">Проверка сессии</div>
 
       <div class="jr-tok">

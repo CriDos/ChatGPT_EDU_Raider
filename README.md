@@ -1,4 +1,4 @@
-# ChatGPT EDU Raider 1.0.4
+# ChatGPT EDU Raider 1.0.5
 
 Userscript для управления ChatGPT EDU/workspace ID прямо на страницах ChatGPT.
 
