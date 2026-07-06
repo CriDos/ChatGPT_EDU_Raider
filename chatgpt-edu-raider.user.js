@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT EDU Raider
 // @namespace    re-kit.local/chatgpt-edu-raider
-// @version      1.0.1
+// @version      1.0.2
 // @description  ChatGPT EDU Raider: управление workspace ID, запросами, инвайтами и сессией.
 // @author       HardTest
 // @updateURL    https://github.com/CriDos/ChatGPT_EDU_Raider/raw/refs/heads/master/chatgpt-edu-raider.user.js
@@ -18,7 +18,7 @@
   "use strict";
 
   // App metadata and runtime keys.
-  const SCRIPT_VERSION = "1.0.1";
+  const SCRIPT_VERSION = "1.0.2";
   const APP_TITLE = "ChatGPT EDU Raider";
   const INSTANCE_KEY = "__chatgptEduRaiderCleanup";
   const PANEL_ID = "jr-edu-raider-panel";
@@ -1510,7 +1510,7 @@
         <button class="jr-btn jr-btn-icon" id="jr-personal-switch" title="Переключиться на личный аккаунт" aria-label="Переключиться на личный аккаунт">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
         </button>
-        <button class="jr-btn jr-btn-icon" id="jr-info" title="Инфо" aria-label="Инфо">
+        <button class="jr-btn jr-btn-icon" id="jr-info" title="Информация о текущем workspace" aria-label="Информация о текущем workspace">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v7"/><path d="M12 7h.01"/></svg>
         </button>
         <button class="jr-btn jr-btn-icon" id="jr-copy-log" title="Скопировать лог" aria-label="Скопировать лог">
